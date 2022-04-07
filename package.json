@@ -3,6 +3,7 @@
   "private": true,
   "license": "GPL-3.0-or-later",
   "dependencies": {
+    "apexcharts": "^3.35.0",
     "bootstrap": "^5",
     "snabbdom": "^3"
   },
