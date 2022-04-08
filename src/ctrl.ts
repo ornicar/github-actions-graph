@@ -1,66 +1,69 @@
-interface Run {
-  started: string;
-  updated: string;
-}
+import { Runs } from './run';
+import Setup from './setup';
 
 export class Ctrl {
-  bearer: string;
-  user: string = 'lichess-org';
-  repo: string = 'lila';
-  runs: Run[] = [];
+  setup?: Setup;
+  runs?: Runs;
   fetching = false;
 
   constructor(readonly redraw: () => void) {
-    this.bearer = localStorage.getItem('bearer') || '';
+    this.setup = Setup.restore();
+    setTimeout(this.start, 200);
   }
 
-  submit = async (url: string, bearer: string) => {
-    this.bearer = bearer;
-    localStorage.setItem('bearer', bearer);
-    const parts = url.match(/^(?:https:\/\/)?(?:www\.)?(?:github\.com\/)?([^\/]+)\/([^\/]+)/)!;
-    this.user = parts[1];
-    this.repo = parts[2];
-    this.runs = JSON.parse(localStorage.getItem('runs') || '[]');
-    this.fetchNextPage(Math.floor(this.runs.length / 30) + 1);
+  submit = async (url: string, workflow: string, bearer: string) => {
+    this.setup = Setup.make(url, workflow, bearer);
+    this.start();
+  };
+
+  start = async () => {
+    if (!this.setup) return;
+    this.runs = new Runs(this.setup);
+    this.redraw();
+    await this.fetchNextPage(1);
   };
 
   fetchNextPage = async (page: number) => {
+    if (!this.runs) return;
     this.fetching = true;
     this.redraw();
+    const action = await this.fetchPage(page);
+    const nextPage = this.runs.addPage(page, action);
+    this.redraw();
+    if (nextPage) {
+      await sleep(2000);
+      this.fetchNextPage(nextPage);
+    } else {
+      this.fetching = false;
+      this.redraw();
+    }
+  };
+
+  fetchPage = async (page: number) => {
+    if (!this.setup) return;
     const res = await fetch(
-      `https://api.github.com/repos/${this.user}/${this.repo}/actions/workflows/server.yml/runs?page=${page}`,
+      `https://api.github.com/repos/${this.setup.userRepo}/actions/workflows/${this.setup.workflow}.yml/runs?page=${page}`,
       {
         headers: {
-          Authorization: `Bearer ${this.bearer}`,
+          Authorization: `Bearer ${this.setup.bearer}`,
         },
       }
     );
-    const action = await res.json();
-    const runs = action.workflow_runs.filter((run: any) => run.status == 'completed').map(toRun);
-    this.runs = [...this.runs, ...runs];
-    localStorage.setItem('runs', JSON.stringify(this.runs));
-    this.fetching = false;
-    this.redraw();
-    await sleep(2000);
-    this.fetchNextPage(page + 1);
+    return await res.json();
   };
 
-  series = () => [
-    {
-      name: 'Duration',
-      data: this.runs.map(run => ({
-        x: run.started,
-        y: duration(run),
-      })),
-    },
-  ];
+  series = () =>
+    this.runs
+      ? [
+          {
+            name: 'Duration',
+            data: this.runs.runs.map(run => ({
+              x: run.started,
+              y: run.duration(),
+            })),
+          },
+        ]
+      : [];
 }
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
-
-const toRun = (run: any) => ({
-  started: run.run_started_at,
-  updated: run.updated_at,
-});
-
-const duration = (run: Run) => (new Date(run.updated).getTime() - new Date(run.started).getTime()) / 1000;
