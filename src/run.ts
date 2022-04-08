@@ -1,13 +1,36 @@
 import Setup from './setup';
 
 export class Run {
-  constructor(readonly id: number, readonly started: Date, readonly updated: Date, readonly status: string) {}
+  duration: number;
 
-  duration = () => (new Date(this.updated).getTime() - new Date(this.started).getTime()) / 1000;
+  constructor(
+    readonly id: number,
+    readonly started: Date,
+    readonly updated: Date,
+    readonly status: string,
+    readonly commit: string
+  ) {
+    this.duration = (new Date(this.updated).getTime() - new Date(this.started).getTime()) / 1000;
+  }
 
-  static make = (o: any) => new Run(o.id, o.started || o.run_started_at, o.updated || o.updated_at, o.status);
+  completed = () => this.status == 'completed';
 
-  data = () => ({ id: this.id, started: this.started, updated: this.updated, status: this.status });
+  data = () => ({
+    id: this.id,
+    started: this.started,
+    updated: this.updated,
+    status: this.status,
+    commit: this.commit,
+  });
+
+  static make = (o: any) =>
+    new Run(
+      o.id,
+      o.started || o.run_started_at || o.run.created_at,
+      o.updated || o.updated_at,
+      o.status,
+      o.commit || o.head_commit?.id.slice(0, 10)
+    );
 }
 
 export class Runs {

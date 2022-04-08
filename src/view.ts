@@ -10,25 +10,31 @@ let apex: ApexCharts;
 
 const chart = (ctrl: Ctrl) =>
   ctrl.runs &&
-  h('div.chart', {
+  h('div.chart.mt-5', {
     hook: {
       insert: vnode => {
         const config = {
-          ...chartConf('Duration'),
+          ...chartConf(ctrl),
           series: ctrl.series(),
         };
         apex = new ApexCharts(vnode.elm as HTMLDivElement, config);
         apex.render();
       },
       update: () => {
+        apex.updateOptions({
+          yaxis: {
+            min: 0,
+            max: ctrl.yAxisMax,
+          },
+        });
         apex.updateSeries(ctrl.series());
       },
     },
   });
 
-const chartConf = (title: string) => ({
+const chartConf = (ctrl: Ctrl) => ({
   title: {
-    text: title,
+    text: 'Duration in seconds',
   },
   theme: {
     mode: 'light',
@@ -36,10 +42,10 @@ const chartConf = (title: string) => ({
   chart: {
     type: 'line',
     zoom: {
-      enabled: false,
+      // enabled: false,
     },
     animations: {
-      enabled: false,
+      enabled: true,
     },
     background: 'transparent',
   },
@@ -49,9 +55,10 @@ const chartConf = (title: string) => ({
   yaxis: {
     opposite: true,
     min: 0,
+    max: ctrl.yAxisMax,
   },
   legend: {
-    position: 'top',
+    // position: 'top',
   },
   stroke: {
     width: 1,
@@ -59,6 +66,12 @@ const chartConf = (title: string) => ({
   grid: {
     borderColor: '#dddddd',
   },
+  // tooltip: {
+  //   custom(d: any) {
+  //     console.log(d);
+  //     return '<div class="arrow_box">' + '<span>' + d.series[d.seriesIndex][d.dataPointIndex] + '</span>' + '</div>';
+  //   },
+  // },
 });
 
 const form = (ctrl: Ctrl) =>

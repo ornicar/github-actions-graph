@@ -57,13 +57,24 @@ export class Ctrl {
       ? [
           {
             name: 'Duration',
-            data: this.runs.runs.map(run => ({
-              x: run.started,
-              y: run.duration(),
-            })),
+            data: this.runs.runs
+              .filter(r => r.started && r.completed())
+              .map(run => ({
+                x: run.started,
+                y: run.duration,
+                commit: run.commit,
+              })),
           },
         ]
       : [];
+
+  yAxisMax = () => (this.runs ? median(this.runs.runs.map(r => r.duration)) * 3 : 0);
 }
 
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+const median = (arr: number[]) => {
+  const mid = Math.floor(arr.length / 2),
+    nums = [...arr].sort((a, b) => a - b);
+  return arr.length % 2 !== 0 ? nums[mid] : (nums[mid - 1] + nums[mid]) / 2;
+};
